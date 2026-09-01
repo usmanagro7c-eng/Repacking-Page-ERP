@@ -3,6 +3,8 @@ import { emptyForm, type FormData } from "../components/form/FormTable";
 
 const STORAGE_KEY = "mirza-mushtaq-form";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
 export type ErpnextItem = {
   name: string;
   item_name?: string;
@@ -39,7 +41,7 @@ export function useProductionForm() {
 
   const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch("/api/production-form/items");
+      const res = await fetch(`${API_BASE_URL}/api/production-form/items`);
       if (!res.ok) return;
       const json = (await res.json()) as { success: boolean; data: ErpnextItem[] };
       if (json.success && Array.isArray(json.data)) {
@@ -52,7 +54,7 @@ export function useProductionForm() {
 
   const fetchLogo = useCallback(async () => {
     try {
-      const res = await fetch("/api/production-form/logo");
+      const res = await fetch(`${API_BASE_URL}/api/production-form/logo`);
       if (!res.ok) return;
       const json = (await res.json()) as { success: boolean; data: string };
       if (json.success && json.data) {
@@ -65,7 +67,7 @@ export function useProductionForm() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch("/api/production-form/config");
+      const res = await fetch(`${API_BASE_URL}/api/production-form/config`);
       if (!res.ok) return;
       const json = (await res.json()) as { success: boolean; data: { erpnextUrl?: string } };
       if (json.success && json.data?.erpnextUrl) {
@@ -86,7 +88,7 @@ export function useProductionForm() {
     }
 
     try {
-      const res = await fetch(`/api/production-form/batches?item=${encodeURIComponent(itemCode)}`);
+      const res = await fetch(`${API_BASE_URL}/api/production-form/batches?item=${encodeURIComponent(itemCode)}`);
       if (!res.ok) {
         setBatchOptions([]);
         return [];
@@ -114,7 +116,7 @@ export function useProductionForm() {
     }
 
     try {
-      const res = await fetch(`/api/production-form/uoms?item=${encodeURIComponent(itemCode)}`);
+      const res = await fetch(`${API_BASE_URL}/api/production-form/uoms?item=${encodeURIComponent(itemCode)}`);
       if (!res.ok) {
         setUomOptions(["Kg"]);
         return ["Kg"];
@@ -292,7 +294,7 @@ export function useProductionForm() {
     setIsSyncing(true);
     setMessage("ERPNext کے ساتھ ڈیٹا منتقل ہو رہا ہے...");
     try {
-      const res = await fetch("/api/production-form/sync-erpnext", {
+      const res = await fetch(`${API_BASE_URL}/api/production-form/sync-erpnext`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
