@@ -9,7 +9,7 @@ export const ProductionFormSchema = z.object({
   totalWeight: Tuple2StringSchema.default(["", ""]),
   cutting25: Tuple2StringSchema.default(["", ""]),
   cutting50: Tuple2StringSchema.default(["", ""]),
-lotNo: Tuple2StringSchema.default(["", ""]),
+  lotNo: Tuple2StringSchema.default(["", ""]),
   rawUom: Tuple2StringSchema.default(["Kg", "Kg"]),
   remaining: Tuple2StringSchema.default(["", ""]),
   readyName: z.string().default(""),
