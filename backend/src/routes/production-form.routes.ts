@@ -37,14 +37,14 @@ productionFormRouter.get("/batches", async (req, res) => {
 // GET /api/production-form/uoms?item=ITEM_CODE
 productionFormRouter.get("/uoms", async (req, res) => {
   const itemCode = String(req.query.item || "").trim();
-  const uoms = itemCode ? await erpnextService.getUomsForItem(itemCode) : [];
+  const uoms = itemCode ? await erpnextService.getUomsForItem(itemCode) : ["Kg"];
   res.json({
     success: true,
     data: uoms,
   });
 });
 
-// GET /api/production-form/config (ERPNext base URL for barcode links)
+// GET /api/production-form/config (ERPNext base URL for barcode / doc links)
 productionFormRouter.get("/config", (_req, res) => {
   res.json({
     success: true,
@@ -97,7 +97,6 @@ productionFormRouter.post("/reset", (_req, res) => {
 
 // POST /api/production-form/sync-erpnext
 productionFormRouter.post("/sync-erpnext", async (req, res) => {
-  // Option to update form before syncing
   if (req.body && Object.keys(req.body).length > 0) {
     const validation = validateProductionFormInput(req.body);
     if (validation.success) {
@@ -123,6 +122,7 @@ productionFormRouter.post("/sync-erpnext", async (req, res) => {
     success: true,
     message: `Form successfully synced to ERPNext document: ${result.documentName}`,
     documentName: result.documentName,
+    docUrl: result.docUrl,
     rawResponse: result.rawResponse,
   });
 });
