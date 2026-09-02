@@ -91,7 +91,7 @@ export interface ErpConfig {
 }
 
 // Support both direct Express backend port 5000 and vite proxy
-const API_BASE = typeof window !== "undefined" && window.location.port === "5000" ? "" : "http://localhost:5000";
+const API_BASE = "https://mmmc-backend.m-jawadahmad116.workers.dev";
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;

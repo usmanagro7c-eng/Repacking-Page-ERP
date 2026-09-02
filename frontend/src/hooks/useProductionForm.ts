@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { emptyForm, type FormData } from "../components/form/FormTable";
 
 const STORAGE_KEY = "mirza-mushtaq-form";
-const API_BASE = typeof window !== "undefined" && window.location.port === "5000" ? "" : "http://localhost:5000";
+const API_BASE = "https://mmmc-backend.m-jawadahmad116.workers.dev";
 
 async function fetchHelper(endpoint: string, options: RequestInit = {}) {
   try {
