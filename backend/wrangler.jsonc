@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mmmc-backend",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-09-02",
+  "vars": {
+     "ERPNEXT_URL": "https://dev16.mmmc.pk",
+    "ERPNEXT_DOCTYPE": "Stock Entry",
+    "ERPNEXT_RAW_WAREHOUSE": "Stores - T",
+    "ERPNEXT_FINISHED_WAREHOUSE": "Finished Goods - T"
+  }
+}
