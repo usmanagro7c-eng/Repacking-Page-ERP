@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-urdu: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+  --color-form-line: var(--form-line);
+  --color-form-ink: var(--form-ink);
+  --color-form-highlight: var(--form-highlight);
+}
+
+:root {
+  --form-line: oklch(0 0 0);
+  --form-ink: oklch(0.15 0 0);
+  --form-highlight: oklch(0.96 0.03 100);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+}
+
+@layer base {
+  * {
+    border-color: var(--form-line);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-urdu);
+  }
+}
+
+@utility font-urdu {
+  font-family: var(--font-urdu);
+  line-height: 2.1;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .sheet-scale-wrap {
+    height: auto !important;
+  }
+  .sheet-scale {
+    transform: none !important;
+    width: auto !important;
+  }
+  .a4-sheet {
+    width: 194mm !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+  input,
+  textarea {
+    background: transparent !important;
+  }
+}
