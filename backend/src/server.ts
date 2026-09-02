@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { gatepassRouter } from "./routes/gatepass.routes.js";
 import { productionFormRouter } from "./routes/production-form.routes.js";
 import { erpnextConfig } from "./config/erpnext.config.js";
 
@@ -25,14 +26,18 @@ app.use((req, res, next) => {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(express.json());
 
 // Health Check
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    service: "Urdu Production Form Express Backend",
+    service: "MMMC ERPNext Integrated Suite (Gatepass & Repacking)",
     erpnextConfigured: erpnextConfig.isConfigured,
     erpnextDocType: erpnextConfig.docType,
     erpnextUrl: erpnextConfig.url,
@@ -40,19 +45,26 @@ app.get("/api/health", (_req, res) => {
 });
 
 // API Routes
+app.use("/api/gatepass", gatepassRouter);
 app.use("/api/production-form", productionFormRouter);
 
 // Global Error Handler
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("🔥 Global Express Backend Error:", err);
-  res.status(500).json({
-    success: false,
-    error: err instanceof Error ? err.message : "Internal Server Error",
-  });
-});
+app.use(
+  (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("🔥 Global Express Backend Error:", err);
+    res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : "Internal Server Error",
+    });
+  },
+);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Production Form Express Backend running on http://localhost:${PORT}`);
+  console.log(`🚀 MMMC Backend running on http://localhost:${PORT}`);
+  console.log(`📦 Repacking API: http://localhost:${PORT}/api/production-form`);
+  console.log(`🚚 Gate Pass API: http://localhost:${PORT}/api/gatepass`);
   console.log(`🔗 ERPNext Target: ${erpnextConfig.url}`);
-  console.log(`🔑 ERPNext Credentials: ${erpnextConfig.isConfigured ? "Configured ✅" : "Missing API Key/Secret ❌"}`);
+  console.log(
+    `🔑 ERPNext Credentials: ${erpnextConfig.isConfigured ? "Configured ✅" : "Missing API Key/Secret ❌"}`,
+  );
 });
