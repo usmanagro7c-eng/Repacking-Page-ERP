@@ -6,14 +6,14 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { globalProductionFormService } from "../services/production-form.service.js";
+import { globalGatePassService } from "../services/gatepass.service.js";
 import { erpnextService } from "../services/erpnext.service.js";
-import { validateProductionFormInput } from "../middleware/validation.middleware.js";
+import { validateGatePassInput } from "../middleware/validation.middleware.js";
 
 export function createMcpServer() {
   const server = new Server(
     {
-      name: "urdu-production-form-erpnext-mcp",
+      name: "mmmc-gatepass-erpnext-mcp",
       version: "1.0.0",
     },
     {
@@ -28,57 +28,64 @@ export function createMcpServer() {
     return {
       tools: [
         {
-          name: "get_production_form",
-          description: "Get the current Urdu Production Form data (مال کی تیاری کی تفصیل) and computed weight/bag totals.",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-        },
-        {
-          name: "update_production_form",
-          description: "Update fields in the Urdu Production Form.",
+          name: "get_gate_pass",
+          description:
+            "Get the active MMMC Gate Pass data (Outward or Inward) and calculated weight/quantity summaries.",
           inputSchema: {
             type: "object",
             properties: {
-              date: { type: "string" },
-              formNo: { type: "string" },
-              rawName: { type: "array", items: { type: "string" } },
-              totalWeight: { type: "array", items: { type: "string" } },
-              cutting25: { type: "array", items: { type: "string" } },
-              cutting50: { type: "array", items: { type: "string" } },
-              lotNo: { type: "array", items: { type: "string" } },
-              remaining: { type: "array", items: { type: "string" } },
-              readyName: { type: "string" },
-              readyLot: { type: "string" },
-              readyBags: { type: "string" },
-              readyWeight: { type: "array", items: { type: "string" } },
-              stock: { type: "string" },
-              notes: { type: "string" },
-              signMaker: { type: "string" },
-              signIncharge: { type: "string" },
+              type: { type: "string", enum: ["outward", "inward"], default: "outward" },
             },
           },
         },
         {
-          name: "sync_to_erpnext",
-          description: "Sync the current production form directly to ERPNext via REST API.",
+          name: "update_gate_pass",
+          description: "Update fields in the active Gate Pass form.",
           inputSchema: {
             type: "object",
-            properties: {},
+            properties: {
+              type: { type: "string", enum: ["outward", "inward"], default: "outward" },
+              no: { type: "string" },
+              date: { type: "string" },
+              adda: { type: "string" },
+              baraye: { type: "string" },
+              party: { type: "string" },
+              phone: { type: "string" },
+              fromWarehouse: { type: "string" },
+              toWarehouse: { type: "string" },
+              vehicle: { type: "string" },
+              driver: { type: "string" },
+              contact: { type: "string" },
+              rickshaw: { type: "string" },
+              extra: { type: "string" },
+              rows: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    qty: { type: "string" },
+                    packing: { type: "string" },
+                    detail: { type: "string" },
+                    weight: { type: "string" },
+                  },
+                },
+              },
+            },
           },
         },
         {
-          name: "calculate_form_summary",
-          description: "Calculate totals and bag counts for the production form.",
+          name: "sync_gatepass_to_erpnext",
+          description: "Sync the active Gate Pass to ERPNext as a Material Transfer Stock Entry.",
           inputSchema: {
             type: "object",
-            properties: {},
+            properties: {
+              type: { type: "string", enum: ["outward", "inward"], default: "outward" },
+            },
           },
         },
         {
-          name: "reset_production_form",
-          description: "Reset the production form to an empty template.",
+          name: "create_inward_from_outward",
+          description: "Generate a corresponding Inward Gate Pass from an Outward Gate Pass.",
           inputSchema: {
             type: "object",
             properties: {},
@@ -90,18 +97,19 @@ export function createMcpServer() {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+    const type = (args?.type as "outward" | "inward") || "outward";
 
     switch (name) {
-      case "get_production_form": {
-        const form = globalProductionFormService.getForm();
-        const summary = globalProductionFormService.calculateSummary(form);
+      case "get_gate_pass": {
+        const form = globalGatePassService.getForm(type);
+        const summary = globalGatePassService.calculateSummary(form);
         return {
           content: [{ type: "text", text: JSON.stringify({ form, summary }, null, 2) }],
         };
       }
 
-      case "update_production_form": {
-        const validation = validateProductionFormInput(args);
+      case "update_gate_pass": {
+        const validation = validateGatePassInput(args);
         if (!validation.success) {
           return {
             isError: true,
@@ -109,22 +117,25 @@ export function createMcpServer() {
           };
         }
 
-        const updated = globalProductionFormService.updateForm(validation.data);
-        const summary = globalProductionFormService.calculateSummary(updated);
+        const updated = globalGatePassService.updateForm(type, validation.data);
+        const summary = globalGatePassService.calculateSummary(updated);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ message: "Form updated successfully", form: updated, summary }, null, 2),
+              text: JSON.stringify(
+                { message: "Gate pass updated successfully", form: updated, summary },
+                null,
+                2,
+              ),
             },
           ],
         };
       }
 
-      case "sync_to_erpnext": {
-        const currentForm = globalProductionFormService.getForm();
-        const summary = globalProductionFormService.calculateSummary(currentForm);
-        const result = await erpnextService.syncProductionForm(currentForm, summary);
+      case "sync_gatepass_to_erpnext": {
+        const currentForm = globalGatePassService.getForm(type);
+        const result = await erpnextService.syncGatePass(currentForm);
 
         if (!result.success) {
           return {
@@ -138,7 +149,10 @@ export function createMcpServer() {
             {
               type: "text",
               text: JSON.stringify(
-                { message: `Successfully synced to ERPNext document ${result.documentName}`, result },
+                {
+                  message: `Successfully synced to ERPNext document: ${result.documentName}`,
+                  result,
+                },
                 null,
                 2,
               ),
@@ -147,18 +161,21 @@ export function createMcpServer() {
         };
       }
 
-      case "calculate_form_summary": {
-        const form = globalProductionFormService.getForm();
-        const summary = globalProductionFormService.calculateSummary(form);
+      case "create_inward_from_outward": {
+        const outward = globalGatePassService.getForm("outward");
+        const inward = globalGatePassService.createInwardFromOutward(outward);
+        const summary = globalGatePassService.calculateSummary(inward);
         return {
-          content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
-        };
-      }
-
-      case "reset_production_form": {
-        const reset = globalProductionFormService.resetForm();
-        return {
-          content: [{ type: "text", text: JSON.stringify({ message: "Form reset", form: reset }, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { message: "Inward pass created from Outward pass", form: inward, summary },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       }
 
@@ -171,10 +188,16 @@ export function createMcpServer() {
     return {
       resources: [
         {
-          uri: "production-form://current",
-          name: "Current Production Form Data",
+          uri: "gatepass://current/outward",
+          name: "Current Outward Gate Pass Data",
           mimeType: "application/json",
-          description: "Live state of the active production form",
+          description: "Live state of the active Outward Gate Pass",
+        },
+        {
+          uri: "gatepass://current/inward",
+          name: "Current Inward Gate Pass Data",
+          mimeType: "application/json",
+          description: "Live state of the active Inward Gate Pass",
         },
       ],
     };
@@ -182,8 +205,14 @@ export function createMcpServer() {
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const { uri } = request.params;
-    if (uri === "production-form://current") {
-      const form = globalProductionFormService.getForm();
+    if (uri === "gatepass://current/outward") {
+      const form = globalGatePassService.getForm("outward");
+      return {
+        contents: [{ uri, mimeType: "application/json", text: JSON.stringify(form, null, 2) }],
+      };
+    }
+    if (uri === "gatepass://current/inward") {
+      const form = globalGatePassService.getForm("inward");
       return {
         contents: [{ uri, mimeType: "application/json", text: JSON.stringify(form, null, 2) }],
       };
@@ -198,5 +227,5 @@ export async function runMcpServer() {
   const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Urdu Production Form & ERPNext MCP Server running on stdio");
+  console.error("MMMC Gate Pass & ERPNext MCP Server running on stdio");
 }
