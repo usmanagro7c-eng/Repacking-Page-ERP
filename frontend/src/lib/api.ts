@@ -92,7 +92,7 @@ export interface ErpConfig {
 
 // API base can be configured at build time via Vite env `VITE_API_BASE`.
 // Fallback to the deployed Worker URL when not provided.
-const API_BASE =  "https://mmmc-backend.m-jawadahmad116.workers.dev";
+const API_BASE = import.meta.env['VITE_API_BASE'] || "https://mmmc-backend.m-jawadahmad116.workers.dev";
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;

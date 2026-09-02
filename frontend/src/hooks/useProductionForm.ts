@@ -2,15 +2,21 @@ import { useCallback, useEffect, useState } from "react";
 import { emptyForm, type FormData } from "../components/form/FormTable";
 
 const STORAGE_KEY = "mirza-mushtaq-form";
-const API_BASE = "https://mmmc-backend.m-jawadahmad116.workers.dev";
+const API_BASE = import.meta.env['VITE_API_BASE'] || "https://mmmc-backend.m-jawadahmad116.workers.dev";
 
 async function fetchHelper(endpoint: string, options: RequestInit = {}) {
   try {
     const res = await fetch(`${API_BASE}${endpoint}`, options);
     return res;
-  } catch {
-    // Retry with relative path
-    return fetch(endpoint, options);
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      try {
+        return await fetch(endpoint, options);
+      } catch {
+        throw new Error("Backend server is unreachable");
+      }
+    }
+    throw err;
   }
 }
 
