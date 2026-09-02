@@ -90,8 +90,9 @@ export interface ErpConfig {
   defaultFinishedWarehouse: string;
 }
 
-// Support both direct Express backend port 5000 and vite proxy
-const API_BASE = "https://mmmc-backend.m-jawadahmad116.workers.dev";
+// API base can be configured at build time via Vite env `VITE_API_BASE`.
+// Fallback to the deployed Worker URL when not provided.
+const API_BASE =  "https://mmmc-backend.m-jawadahmad116.workers.dev";
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
@@ -106,22 +107,23 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
     }
     return data;
   } catch (err: unknown) {
-    if (err instanceof TypeError && err.message.includes("fetch")) {
-      // Retry with relative path if direct localhost fails
+    // In development only, allow falling back to a relative path (vite proxy or local server).
+    // In production we should not retry a relative path because that will hit the Pages site and produce 404s.
+    if (import.meta.env.DEV) {
       try {
         const fallbackRes = await fetch(endpoint, {
           headers: { "Content-Type": "application/json", ...options.headers },
           ...options,
         });
         const data = await fallbackRes.json();
-        if (!fallbackRes.ok) throw new Error(data.error || data.message || "Request failed");
+        if (!fallbackRes.ok) throw new Error(data?.error || data?.message || "Request failed");
         return data;
       } catch {
-        throw new Error("Backend سرور سے رابطہ نہیں ہو سکا (Backend server is offline on port 5000)");
+        throw new Error("Backend سرور سے رابطہ نہیں ہو سکا (Backend server is offline or unreachable)");
       }
     }
     throw err;
