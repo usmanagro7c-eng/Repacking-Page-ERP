@@ -91,15 +91,36 @@ export interface ErpConfig {
 }
 
 // API base can be configured at build time via Vite env `VITE_API_BASE`.
-// Fallback to the deployed Worker URL when not provided.
-const API_BASE = import.meta.env['VITE_API_BASE'] || "https://mmmc-backend.m-jawadahmad116.workers.dev";
+// Fallback to local dev server in development or the deployed Worker URL in production.
+const API_BASE =
+  import.meta.env["VITE_API_BASE"] ||
+  (import.meta.env.DEV ? "http://localhost:5000" : "https://mmmc-backend.m-jawadahmad116.workers.dev");
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+
+  // Automatically inject logged-in user's session sid so all ERP calls run under the user's identity
+  const authHeaders: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("mmmc_erp_auth_user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u && u.sid) {
+          authHeaders["x-user-sid"] = u.sid;
+          authHeaders["Authorization"] = `Bearer ${u.sid}`;
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
   try {
     const res = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
+        ...authHeaders,
         ...options.headers,
       },
       ...options,
@@ -217,4 +238,61 @@ export const api = {
   async getHistory() {
     return apiFetch<{ success: boolean; data: GatePassData[] }>("/api/gatepass/history");
   },
+
+  // Authentication API endpoints
+  async login(usr: string, pwd: string, erpUrl?: string) {
+    return apiFetch<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ usr, pwd, erpUrl }),
+    });
+  },
+
+  async loginWithApiKey(apiKey: string, apiSecret: string, erpUrl?: string) {
+    return apiFetch<AuthResponse>("/api/auth/login-api-key", {
+      method: "POST",
+      body: JSON.stringify({ apiKey, apiSecret, erpUrl }),
+    });
+  },
+
+  async verifySession(sid: string, erpUrl?: string) {
+    return apiFetch<{ success: boolean; valid: boolean; user?: string }>("/api/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ sid, erpUrl }),
+    });
+  },
+
+  async logout(sid?: string, erpUrl?: string) {
+    return apiFetch<{ success: boolean; message: string }>("/api/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ sid, erpUrl }),
+    });
+  },
 };
+
+export interface UserPermissions {
+  roles: string[];
+  allowedWarehouses: string[];
+  canReadStockEntry: boolean;
+  canCreateStockEntry: boolean;
+  canSubmitStockEntry: boolean;
+}
+
+export interface AuthUser {
+  username: string;
+  fullName: string;
+  email: string;
+  roles?: string[];
+  permissions?: UserPermissions;
+  sid?: string;
+  erpUrl: string;
+  authType?: "password" | "apiKey";
+  loginTime?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message?: string;
+  user?: AuthUser;
+  error?: string;
+}
+
