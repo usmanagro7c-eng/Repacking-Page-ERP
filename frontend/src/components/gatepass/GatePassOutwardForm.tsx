@@ -112,14 +112,12 @@ interface GatePassOutwardFormProps {
   userCanCreateStockEntry: boolean;
   permittedWarehouses: ErpnextWarehouse[];
   items: ErpnextItem[];
-  onConvertToInward?: (outwardData: GatePassData) => void;
 }
 
 export function GatePassOutwardForm({
   userCanCreateStockEntry,
   permittedWarehouses,
   items,
-  onConvertToInward,
 }: GatePassOutwardFormProps) {
   const [formData, setFormData] = useState<GatePassData>(() => initialOutwardData());
   const [isSyncing, setIsSyncing] = useState(false);
@@ -345,16 +343,6 @@ export function GatePassOutwardForm({
               <button type="button" onClick={() => window.print()} className={btnNeutral}>
                 پرنٹ کریں
               </button>
-              {onConvertToInward && (
-                <button
-                  type="button"
-                  onClick={() => onConvertToInward(formData)}
-                  className={`${btnNeutral} text-blue-800 font-bold hover:bg-blue-50 px-2.5`}
-                  title="اس آؤٹ ورڈ سے فوری ان ورڈ پاس بنائیں"
-                >
-                  ان ورڈ بنائیں ➔
-                </button>
-              )}
             </div>
             <div className="flex flex-nowrap items-center gap-1.5 shrink-0">
               <button

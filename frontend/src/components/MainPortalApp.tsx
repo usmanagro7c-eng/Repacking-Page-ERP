@@ -106,23 +106,6 @@ export function MainPortalApp() {
     loadData();
   }, [isAuthenticated]);
 
-  // Convert Outward to Inward
-  const handleTransferToInward = (outwardData: GatePassData) => {
-    const newInward: GatePassData = {
-      ...outwardData,
-      type: "inward",
-      no: "",
-      relatedOutwardNo: outwardData.no || outwardData.erpDocName || "",
-      fromWarehouse: outwardData.fromWarehouse || "",
-      toWarehouse: outwardData.toWarehouse || "",
-      date: new Date().toISOString().split("T")[0] ?? "",
-      erpDocName: undefined,
-      rows: outwardData.rows.map((r) => ({ ...r })),
-    };
-    setInwardPrefill(newInward);
-    setActiveModule("inward");
-  };
-
   // Load Transfer from ERP into Gatepass
   const handleLoadTransferIntoGatepass = (
     _transfer: ErpnextMaterialTransfer,
@@ -439,7 +422,6 @@ export function MainPortalApp() {
             userCanCreateStockEntry={userCanCreateStockEntry}
             permittedWarehouses={permittedWarehouses}
             items={items}
-            onConvertToInward={handleTransferToInward}
           />
         )}
 
