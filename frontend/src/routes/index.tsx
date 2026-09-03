@@ -41,7 +41,12 @@ import {
   Layers,
   ChevronDown,
   Boxes,
+  LogOut,
+  UserCircle,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { SignInPage } from "../components/auth/SignInPage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -162,7 +167,8 @@ function ResponsiveSheetWrapper({
   );
 }
 
-function MainPortalApp() {
+export function MainPortalApp() {
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   // Navigation Modules: 'repacking' | 'outward' | 'inward' | 'transfers'
   const [activeModule, setActiveModule] = useState<"repacking" | "outward" | "inward" | "transfers">("outward");
   const [gatepassDropdownOpen, setGatepassDropdownOpen] = useState(false);
@@ -184,9 +190,47 @@ function MainPortalApp() {
     }
   };
 
-  // ERPNext Global State (Safely fetched from backend without exposing API secrets)
+  // ERPNext Global State (Safely fetched from backend with logged-in user permissions)
   const [items, setItems] = useState<ErpnextItem[]>([]);
   const [warehouses, setWarehouses] = useState<ErpnextWarehouse[]>([]);
+  const allowedWarehouses = user?.permissions?.allowedWarehouses || [];
+  const permittedWarehouses = useMemo(() => {
+    if (allowedWarehouses.length > 0) {
+      return warehouses.filter((wh) => allowedWarehouses.includes(wh.name));
+    }
+    return warehouses;
+  }, [warehouses, allowedWarehouses]);
+
+  // Dynamic role and permission evaluation for Stock Entry operations
+  const userCanCreateStockEntry = useMemo(() => {
+    if (!user) return false;
+    if (user.permissions?.canCreateStockEntry) return true;
+    const userRoles = [...(user.roles || []), ...(user.permissions?.roles || [])];
+    return userRoles.some((r) => {
+      const lower = r.toLowerCase();
+      return (
+        lower.includes("stock") ||
+        lower.includes("system manager") ||
+        lower.includes("administrator") ||
+        lower.includes("manufacturing")
+      );
+    });
+  }, [user]);
+
+  const userCanReadTransfers = useMemo(() => {
+    if (!user) return false;
+    if (user.permissions?.canReadStockEntry) return true;
+    const userRoles = [...(user.roles || []), ...(user.permissions?.roles || [])];
+    return userRoles.some((r) => {
+      const lower = r.toLowerCase();
+      return (
+        lower.includes("stock") ||
+        lower.includes("system manager") ||
+        lower.includes("administrator") ||
+        lower.includes("manufacturing")
+      );
+    });
+  }, [user]);
   const [transfers, setTransfers] = useState<ErpnextMaterialTransfer[]>([]);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [erpConfigured, setErpConfigured] = useState<boolean>(false);
@@ -493,6 +537,24 @@ function MainPortalApp() {
   const cell =
     "w-full bg-transparent px-2 py-1.5 text-center text-[14px] outline-none focus:bg-amber-50/50 print:focus:bg-transparent font-medium";
 
+  if (isLoading) {
+    return (
+      <div
+        dir="rtl"
+        className="flex min-h-screen flex-col items-center justify-center bg-slate-950 text-white"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-9 w-9 animate-spin text-emerald-500" />
+          <p className="font-urdu text-sm text-slate-300">سسٹم اور سیشن کی توثیق ہو رہی ہے...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <SignInPage />;
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100/70 py-5 px-2 sm:px-4 print:bg-white print:p-0">
       <div className="w-full max-w-[210mm] mx-auto">
@@ -548,23 +610,64 @@ function MainPortalApp() {
                 </span>
               </button>
 
-              {/* 4. Transfers Records Tab */}
-              <button
-                type="button"
-                onClick={() => setActiveModule("transfers")}
-                className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-urdu font-semibold transition-all ${
-                  activeModule === "transfers"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>میٹریل ٹرانسفرز</span>
-              </button>
+              {/* 4. Transfers Records Tab (Gated by userCanReadTransfers) */}
+              {userCanReadTransfers && (
+                <button
+                  type="button"
+                  onClick={() => setActiveModule("transfers")}
+                  className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-urdu font-semibold transition-all ${
+                    activeModule === "transfers"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  <span>میٹریل ٹرانسفرز</span>
+                </button>
+              )}
             </div>
 
-            {/* Right Live Status & Connection Info */}
+            {/* Right Live Status & User Profile Info */}
             <div className="flex shrink-0 items-center gap-2">
+              {user && (
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1">
+                    <UserCircle className="h-4 w-4 text-emerald-600" />
+                    <div className="text-right">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <span className="block text-[11px] font-urdu font-bold text-slate-800 leading-tight">
+                          {user.fullName || user.username}
+                        </span>
+                        {user.roles && user.roles.length > 0 && (
+                          <span className="bg-emerald-100 text-emerald-800 font-sans text-[9px] font-bold px-1 rounded">
+                            {user.roles[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 justify-end">
+                        <span className="block text-[9.5px] text-slate-500 font-sans leading-tight">
+                          {user.email || user.username}
+                        </span>
+                        {allowedWarehouses.length > 0 && (
+                          <span className="bg-amber-100 text-amber-900 text-[9px] font-urdu px-1 rounded" title="مخصوص گودام">
+                            گودام: {allowedWarehouses.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-urdu font-semibold text-red-700 hover:bg-red-100 hover:text-red-900 transition-colors shadow-2xs cursor-pointer"
+                    title="سسٹم سے لاگ آؤٹ کریں"
+                  >
+                    <LogOut className="h-3 w-3 text-red-600" />
+                    <span>لاگ آؤٹ</span>
+                  </button>
+                </div>
+              )}
+
               {backendOnline !== null && (
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
@@ -664,10 +767,19 @@ function MainPortalApp() {
                     <button
                       type="button"
                       onClick={repacking.syncToErpnext}
-                      disabled={repacking.isSyncing}
+                      disabled={repacking.isSyncing || !userCanCreateStockEntry}
                       className={btnSync}
+                      title={
+                        !userCanCreateStockEntry
+                          ? "آپ کے ERPNext اکاؤنٹ کے پاس سٹاک انٹری بنانے کی اجازت نہیں ہے (Restricted by ERPNext)"
+                          : "ERPNext میں سٹاک انٹری بنائیں"
+                      }
                     >
-                      {repacking.isSyncing ? "منتقل ہو رہا ہے..." : "سٹاک انٹری بنائیں ⚡ (Repack)"}
+                      {repacking.isSyncing
+                        ? "منتقل ہو رہا ہے..."
+                        : !userCanCreateStockEntry
+                        ? "سٹاک انٹری (اجازت نہیں ہے 🔒)"
+                        : "سٹاک انٹری بنائیں ⚡ (Repack)"}
                     </button>
                     <span
                       aria-live="polite"
@@ -732,10 +844,19 @@ function MainPortalApp() {
                     <button
                       type="button"
                       onClick={handleSyncGatePassToErp}
-                      disabled={isSyncingGatePass}
+                      disabled={isSyncingGatePass || !userCanCreateStockEntry}
                       className={btnSync}
+                      title={
+                        !userCanCreateStockEntry
+                          ? "آپ کے ERPNext اکاؤنٹ کے پاس میٹریل ٹرانسفر بنانے کی اجازت نہیں ہے (Restricted by ERPNext)"
+                          : "ERPNext میں میٹریل ٹرانسفر بنائیں"
+                      }
                     >
-                      {isSyncingGatePass ? "منتقل ہو رہا ہے..." : "میٹریل ٹرانسفر بنائیں ⚡"}
+                      {isSyncingGatePass
+                        ? "منتقل ہو رہا ہے..."
+                        : !userCanCreateStockEntry
+                        ? "میٹریل ٹرانسفر (اجازت نہیں ہے 🔒)"
+                        : "میٹریل ٹرانسفر بنائیں ⚡"}
                     </button>
                     <span
                       aria-live="polite"
@@ -896,9 +1017,9 @@ function MainPortalApp() {
                       </div>
                     </div>
 
-                    {/* Warehouse Auto-suggest datalist */}
+                    {/* Warehouse Auto-suggest datalist (strictly filtered by user permissions) */}
                     <datalist id="warehouse-options">
-                      {warehouses.map((wh) => (
+                      {permittedWarehouses.map((wh) => (
                         <option key={wh.name} value={wh.name}>
                           {wh.warehouse_name || wh.name}
                         </option>
