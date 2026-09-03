@@ -2,20 +2,20 @@ import { useProductionForm } from "../../hooks/useProductionForm";
 import { FormSheet as RepackingFormSheet } from "../form/FormSheet";
 import { ResponsiveSheetWrapper } from "../ui/ResponsiveSheetWrapper";
 
-interface RepackingModuleProps {
+interface RepackingFormProps {
   userCanCreateStockEntry: boolean;
 }
 
-export function RepackingModule({ userCanCreateStockEntry }: RepackingModuleProps) {
-  const repacking = useProductionForm();
+const btn =
+  "inline-flex cursor-pointer select-none items-center justify-center gap-1 rounded-md border px-3.5 py-1.5 text-[13px] font-urdu whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:pointer-events-none disabled:opacity-50 max-sm:px-2 max-sm:py-1 max-sm:text-[11px]";
 
-  // Consistent Toolbar Button Styles
-  const btnBase =
-    "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-bold transition-all shadow-xs cursor-pointer active:scale-98 select-none";
-  const btnSave = `${btnBase} bg-emerald-800 hover:bg-emerald-900 text-white`;
-  const btnNeutral = `${btnBase} bg-white hover:bg-slate-100 text-slate-800 border border-slate-300`;
-  const btnDanger = `${btnBase} bg-rose-700 hover:bg-rose-800 text-white`;
-  const btnSync = `${btnBase} bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed`;
+const btnSave = `${btn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold`;
+const btnNeutral = `${btn} border-slate-400 bg-white text-slate-900 hover:bg-amber-50/60 font-medium`;
+const btnDanger = `${btn} border-red-300 bg-white text-red-700 hover:bg-red-50 font-medium`;
+const btnSync = `${btn} border-emerald-600 bg-emerald-50 font-bold text-emerald-950 hover:bg-emerald-100`;
+
+export function RepackingForm({ userCanCreateStockEntry }: RepackingFormProps) {
+  const repacking = useProductionForm();
 
   return (
     <div className="w-full">
