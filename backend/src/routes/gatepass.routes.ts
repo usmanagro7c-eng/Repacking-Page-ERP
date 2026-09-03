@@ -3,6 +3,7 @@ import { globalGatePassService } from "../services/gatepass.service.js";
 import { erpnextService } from "../services/erpnext.service.js";
 import { erpnextConfig } from "../config/erpnext.config.js";
 import { validateGatePassInput } from "../middleware/validation.middleware.js";
+import { extractUserSid } from "../middleware/auth.middleware.js";
 import type { GatePassType } from "../types/gatepass.types.js";
 
 export const gatepassRouter = Router();
@@ -86,8 +87,9 @@ gatepassRouter.get("/history", (_req, res) => {
 });
 
 // GET /api/gatepass/items
-gatepassRouter.get("/items", async (_req, res) => {
-  const items = await erpnextService.getItemsList();
+gatepassRouter.get("/items", async (req, res) => {
+  const userSid = extractUserSid(req);
+  const items = await erpnextService.getItemsList(userSid);
   res.json({
     success: true,
     data: items,
@@ -95,8 +97,9 @@ gatepassRouter.get("/items", async (_req, res) => {
 });
 
 // GET /api/gatepass/warehouses
-gatepassRouter.get("/warehouses", async (_req, res) => {
-  const warehouses = await erpnextService.getWarehousesList();
+gatepassRouter.get("/warehouses", async (req, res) => {
+  const userSid = extractUserSid(req);
+  const warehouses = await erpnextService.getWarehousesList(userSid);
   res.json({
     success: true,
     data: warehouses,
@@ -104,8 +107,9 @@ gatepassRouter.get("/warehouses", async (_req, res) => {
 });
 
 // GET /api/gatepass/transfers (Fetch recent Material Transfer Stock Entries from ERPNext)
-gatepassRouter.get("/transfers", async (_req, res) => {
-  const transfers = await erpnextService.getMaterialTransfersList();
+gatepassRouter.get("/transfers", async (req, res) => {
+  const userSid = extractUserSid(req);
+  const transfers = await erpnextService.getMaterialTransfersList(userSid);
   res.json({
     success: true,
     data: transfers,
@@ -115,7 +119,8 @@ gatepassRouter.get("/transfers", async (_req, res) => {
 // GET /api/gatepass/transfers/:name
 gatepassRouter.get("/transfers/:name", async (req, res) => {
   const name = req.params.name;
-  const transfer = await erpnextService.getMaterialTransferById(name);
+  const userSid = extractUserSid(req);
+  const transfer = await erpnextService.getMaterialTransferById(name, userSid);
   if (!transfer) {
     res.status(404).json({
       success: false,
@@ -160,7 +165,8 @@ gatepassRouter.post("/sync-erpnext", async (req, res) => {
     return;
   }
 
-  const result = await erpnextService.syncGatePass(formToSync);
+  const userSid = extractUserSid(req);
+  const result = await erpnextService.syncGatePass(formToSync, userSid);
 
   if (!result.success) {
     res.status(500).json({
