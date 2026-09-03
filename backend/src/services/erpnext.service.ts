@@ -27,6 +27,22 @@ export class ErpnextService {
   }
 
   /**
+   * Helper to build request headers.
+   * When userSid is provided, requests are executed strictly within the authenticated user's session,
+   * enforcing ERPNext's role permissions, user permissions (e.g. warehouse restrictions), and document access rules.
+   */
+  public getHeaders(userSid?: string): Record<string, string> {
+    if (userSid && userSid.trim()) {
+      return {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Cookie: `sid=${userSid.trim()}`,
+      };
+    }
+    return erpnextConfig.headers;
+  }
+
+  /**
    * Helper fetch with timeout
    */
   private async secureFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -127,8 +143,8 @@ export class ErpnextService {
   /**
    * Fetches Item list from ERPNext REST API
    */
-  public async getItemsList(): Promise<ErpnextItem[]> {
-    if (!erpnextConfig.isConfigured) {
+  public async getItemsList(userSid?: string): Promise<ErpnextItem[]> {
+    if (!erpnextConfig.isConfigured && !userSid) {
       return [];
     }
 
@@ -141,7 +157,7 @@ export class ErpnextService {
       const targetUrl = `${this.getBaseUrl()}/api/resource/Item?${query.toString()}`;
       
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
 
       if (!res.ok) {
@@ -158,9 +174,10 @@ export class ErpnextService {
 
   /**
    * Fetches Warehouse list from ERPNext REST API
+   * ERPNext filters warehouses strictly according to user permissions if userSid is provided.
    */
-  public async getWarehousesList(): Promise<ErpnextWarehouse[]> {
-    if (!erpnextConfig.isConfigured) {
+  public async getWarehousesList(userSid?: string): Promise<ErpnextWarehouse[]> {
+    if (!erpnextConfig.isConfigured && !userSid) {
       return [];
     }
 
@@ -173,7 +190,7 @@ export class ErpnextService {
       const targetUrl = `${this.getBaseUrl()}/api/resource/Warehouse?${query.toString()}`;
 
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
 
       if (!res.ok) {
@@ -191,8 +208,8 @@ export class ErpnextService {
   /**
    * Fetches batches for an item from ERPNext
    */
-  public async getBatchesForItem(itemCode: string): Promise<string[]> {
-    if (!erpnextConfig.isConfigured || !itemCode?.trim()) return [];
+  public async getBatchesForItem(itemCode: string, userSid?: string): Promise<string[]> {
+    if ((!erpnextConfig.isConfigured && !userSid) || !itemCode?.trim()) return [];
     try {
       const query = new URLSearchParams({
         fields: JSON.stringify(["name"]),
@@ -201,7 +218,7 @@ export class ErpnextService {
       });
       const targetUrl = `${this.getBaseUrl()}/api/resource/Batch?${query.toString()}`;
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
       if (!res.ok) return [];
       const json = (await res.json()) as { data?: Array<{ name: string }> };
@@ -215,12 +232,12 @@ export class ErpnextService {
   /**
    * Fetches UOMs for an item from ERPNext
    */
-  public async getUomsForItem(itemCode: string): Promise<string[]> {
-    if (!erpnextConfig.isConfigured || !itemCode?.trim()) return ["Kg"];
+  public async getUomsForItem(itemCode: string, userSid?: string): Promise<string[]> {
+    if ((!erpnextConfig.isConfigured && !userSid) || !itemCode?.trim()) return ["Kg"];
     try {
       const targetUrl = `${this.getBaseUrl()}/api/resource/Item/${encodeURIComponent(itemCode.trim())}?fields=${encodeURIComponent(JSON.stringify(["uoms"]))}`;
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
       if (!res.ok) return ["Kg"];
       const json = (await res.json()) as { data?: { uoms?: Array<{ uom?: string }> } };
@@ -235,14 +252,15 @@ export class ErpnextService {
   }
 
   /**
-   * Fetches ERPNext user image / logo
+   * Fetches ERPNext user image / logo for logged in user
    */
-  public async getUserLogo(): Promise<string> {
-    if (!erpnextConfig.isConfigured) return "";
+  public async getUserLogo(userEmail?: string, userSid?: string): Promise<string> {
+    if (!erpnextConfig.isConfigured && !userSid) return "";
     try {
-      const targetUrl = `${this.getBaseUrl()}/api/resource/User/Administrator?fields=${encodeURIComponent(JSON.stringify(["user_image", "user_image_small"]))}`;
+      const targetUser = userEmail ? encodeURIComponent(userEmail.trim()) : "Administrator";
+      const targetUrl = `${this.getBaseUrl()}/api/resource/User/${targetUser}?fields=${encodeURIComponent(JSON.stringify(["user_image", "user_image_small"]))}`;
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
       if (!res.ok) return "";
       const json = (await res.json()) as {
@@ -258,9 +276,10 @@ export class ErpnextService {
 
   /**
    * Fetches recent Material Transfers (Stock Entry) from ERPNext
+   * ERPNext filters results based on user's exact roles and permissions if userSid is provided.
    */
-  public async getMaterialTransfersList(): Promise<ErpnextMaterialTransfer[]> {
-    if (!erpnextConfig.isConfigured) return [];
+  public async getMaterialTransfersList(userSid?: string): Promise<ErpnextMaterialTransfer[]> {
+    if (!erpnextConfig.isConfigured && !userSid) return [];
 
     try {
       const query = new URLSearchParams({
@@ -282,7 +301,7 @@ export class ErpnextService {
       const targetUrl = `${this.getBaseUrl()}/api/resource/Stock Entry?${query.toString()}`;
 
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
 
       if (!res.ok) return [];
@@ -298,13 +317,13 @@ export class ErpnextService {
   /**
    * Fetches a specific Material Transfer by ID from ERPNext
    */
-  public async getMaterialTransferById(docName: string): Promise<ErpnextMaterialTransfer | null> {
-    if (!erpnextConfig.isConfigured || !docName?.trim()) return null;
+  public async getMaterialTransferById(docName: string, userSid?: string): Promise<ErpnextMaterialTransfer | null> {
+    if ((!erpnextConfig.isConfigured && !userSid) || !docName?.trim()) return null;
 
     try {
       const targetUrl = `${this.getBaseUrl()}/api/resource/Stock Entry/${encodeURIComponent(docName.trim())}`;
       const res = await this.secureFetch(targetUrl, {
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
       });
 
       if (!res.ok) return null;
@@ -424,12 +443,14 @@ export class ErpnextService {
 
   /**
    * Syncs Gate Pass to ERPNext as Material Transfer Stock Entry
+   * When userSid is provided, the entry is created under the user's ERPNext session,
+   * verifying user roles, permissions, and warehouse constraints.
    */
-  public async syncGatePass(gatePassData: GatePassData): Promise<ErpnextSyncResult> {
-    if (!erpnextConfig.isConfigured) {
+  public async syncGatePass(gatePassData: GatePassData, userSid?: string): Promise<ErpnextSyncResult> {
+    if (!erpnextConfig.isConfigured && !userSid) {
       return {
         success: false,
-        error: "ERPNext سیٹنگز موجود نہیں ہیں۔ براہ کرم ERPNext_URL اور API Credentials سیٹ کریں۔",
+        error: "ERPNext سیٹنگز موجود نہیں ہیں۔ براہ کرم لاگ اِن کریں یا کریڈینشلز چیک کریں۔",
       };
     }
 
@@ -439,7 +460,7 @@ export class ErpnextService {
     try {
       const response = await this.secureFetch(targetUrl, {
         method: "POST",
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
         body: JSON.stringify(payload),
       });
 
@@ -451,6 +472,14 @@ export class ErpnextService {
       }>(response);
 
       if (!response.ok) {
+        if (response.status === 403 || json.exception?.includes("PermissionError")) {
+          return {
+            success: false,
+            error: "آپ کے ERPNext اکاؤنٹ کو میٹریل ٹرانسفر (Stock Entry) بنانے کی اجازت نہیں ہے۔ براہ کرم اپنے ایڈمنسٹریٹر سے رابطہ کریں۔ (Permission Denied)",
+            details: json,
+          };
+        }
+
         let errorMsg: string = json.message || json.exception || "";
         if (!errorMsg && !isJson) {
           errorMsg = this.formatHttpError(response.status, text);
@@ -583,15 +612,18 @@ export class ErpnextService {
 
   /**
    * Syncs Repack / Production Form to ERPNext as Stock Entry (Repack)
+   * When userSid is provided, the entry is created under the user's ERPNext session,
+   * verifying user roles and manufacturing / stock entry permissions.
    */
   public async syncProductionForm(
     formData: ProductionFormData,
     summaryStats?: unknown,
+    userSid?: string,
   ): Promise<ErpnextSyncResult> {
-    if (!erpnextConfig.isConfigured) {
+    if (!erpnextConfig.isConfigured && !userSid) {
       return {
         success: false,
-        error: "ERPNext سیٹنگز موجود نہیں ہیں۔ براہ کرم ERPNext Credentials سیٹ کریں۔",
+        error: "ERPNext سیٹنگز موجود نہیں ہیں۔ براہ کرم لاگ اِن کریں یا کریڈینشلز چیک کریں۔",
       };
     }
 
@@ -608,7 +640,7 @@ export class ErpnextService {
     try {
       const response = await this.secureFetch(targetUrl, {
         method: "POST",
-        headers: erpnextConfig.headers,
+        headers: this.getHeaders(userSid),
         body: JSON.stringify(payload),
       });
 
@@ -620,6 +652,14 @@ export class ErpnextService {
       }>(response);
 
       if (!response.ok) {
+        if (response.status === 403 || json.exception?.includes("PermissionError")) {
+          return {
+            success: false,
+            error: "آپ کے ERPNext اکاؤنٹ کو ریپیکنگ / سٹاک انٹری بنانے کی اجازت نہیں ہے۔ براہ کرم اپنے ایڈمنسٹریٹر سے رابطہ کریں۔ (Permission Denied)",
+            details: json,
+          };
+        }
+
         let errorMsg: string = json.message || json.exception || "";
         if (!errorMsg && !isJson) {
           errorMsg = this.formatHttpError(response.status, text);
