@@ -1,6 +1,6 @@
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SignInPage } from "./components/auth/SignInPage";
-import { MainPortalApp } from "./routes/index";
+import { MainPortalApp } from "./components/MainPortalApp";
 import { Loader2 } from "lucide-react";
 
 function AuthenticatedApp() {
