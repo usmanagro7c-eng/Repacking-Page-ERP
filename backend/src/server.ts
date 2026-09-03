@@ -1,4 +1,3 @@
-import { httpServerHandler } from "cloudflare:node";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -9,10 +8,8 @@ import { erpnextConfig } from "./config/erpnext.config.js";
 
 dotenv.config();
 
-const app = express();
-
-// Cloudflare Workers Express integration uses a fixed internal port.
-const PORT = 3000;
+export const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Request Logging Middleware
 app.use((req, res, next) => {
@@ -37,7 +34,7 @@ app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-sid"],
   }),
 );
 
@@ -76,9 +73,11 @@ app.use(
   },
 );
 
-// Cloudflare Workers + Express
-app.listen(PORT);
-
-export default httpServerHandler({
-  port: PORT,
+// Start Node.js Express server
+app.listen(PORT, () => {
+  console.log(`🚀 MMMC Backend running on http://localhost:${PORT}`);
+  console.log(`📦 Repacking API: http://localhost:${PORT}/api/production-form`);
+  console.log(`🚚 Gate Pass API: http://localhost:${PORT}/api/gatepass`);
+  console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
+  console.log(`🔗 ERPNext Target: ${erpnextConfig.url}`);
 });
