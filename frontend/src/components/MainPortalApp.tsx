@@ -345,80 +345,45 @@ export function MainPortalApp() {
     <main dir="rtl" className="min-h-screen bg-slate-100/70 py-5 px-2 sm:px-4 print:bg-white print:p-0">
       <div className="w-full max-w-[210mm] mx-auto">
         {/* ========================================================================= */}
-        {/* MASTER TOP APPLICATION NAVBAR (With Back to Menu Button)                   */}
+        {/* TOP APPLICATION NAVBAR: Back to Menu & Current Form Badge                */}
         {/* ========================================================================= */}
         <div className="no-print mb-3.5 w-full">
           <div className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 shadow-xs border border-slate-200">
-            {/* Back to Home/Menu Button & Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            {/* Back to Home/Menu Button & Current Active Form Title ONLY */}
+            <div className="flex items-center gap-2.5">
               {/* BACK TO MAIN MENU BUTTON */}
               <button
                 type="button"
                 onClick={() => setActiveModule("menu")}
-                className="flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs sm:text-[13px] font-urdu font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer shadow-xs active:scale-98"
                 title="مرکزی مینو پر واپس جائیں"
               >
-                <LayoutGrid className="h-3.5 w-3.5 text-amber-400" />
-                <span>تمام فارمز (مینو)</span>
+                <ArrowRight className="h-4 w-4 text-amber-400" />
+                <span>تمام فارمز (مین مینو)</span>
               </button>
 
-              {/* 1. ریپیکنگ / مال کی تیاری (Repacking) */}
-              <button
-                type="button"
-                onClick={() => setActiveModule("repacking")}
-                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                  activeModule === "repacking"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-800 hover:bg-emerald-50 hover:text-emerald-900"
-                }`}
-              >
-                <Boxes className="h-3.5 w-3.5" />
-                <span>ریپیکنگ</span>
-              </button>
-
-              {/* 2. گیٹ پاس (آؤٹ ورڈ) */}
-              <button
-                type="button"
-                onClick={() => setActiveModule("outward")}
-                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                  activeModule === "outward"
-                    ? "bg-amber-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-800 hover:bg-amber-50 hover:text-amber-900"
-                }`}
-              >
-                <Truck className="h-3.5 w-3.5" />
-                <span>آؤٹ ورڈ</span>
-              </button>
-
-              {/* 3. گیٹ پاس (ان ورڈ) */}
-              <button
-                type="button"
-                onClick={() => setActiveModule("inward")}
-                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                  activeModule === "inward"
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-800 hover:bg-blue-50 hover:text-blue-900"
-                }`}
-              >
-                <Truck className="h-3.5 w-3.5" />
-                <span>ان ورڈ</span>
-              </button>
-
-              {/* 4. Transfers Records Tab */}
-              {userCanReadTransfers && (
-                <button
-                  type="button"
-                  onClick={() => setActiveModule("transfers")}
-                  className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-urdu font-semibold transition-all cursor-pointer ${
-                    activeModule === "transfers"
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "text-slate-700 hover:bg-slate-100"
+              {/* CURRENT ACTIVE FORM TITLE ONLY (No other form buttons) */}
+              <div className="flex items-center gap-1.5 pr-2.5 border-r border-slate-200">
+                <span className="text-[11px] font-urdu font-medium text-slate-500 hidden sm:inline">
+                  موجودہ فارم:
+                </span>
+                <span
+                  className={`text-xs sm:text-[13px] font-urdu font-bold px-2.5 py-1 rounded-md shadow-2xs ${
+                    activeModule === "repacking"
+                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      : activeModule === "outward"
+                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                      : activeModule === "inward"
+                      ? "bg-blue-100 text-blue-900 border border-blue-300"
+                      : "bg-indigo-100 text-indigo-900 border border-indigo-300"
                   }`}
                 >
-                  <Layers className="h-3.5 w-3.5" />
-                  <span>ٹرانسفرز</span>
-                </button>
-              )}
+                  {activeModule === "repacking" && "ریپیکنگ (مال کی تیاری)"}
+                  {activeModule === "outward" && "گیٹ پاس (آؤٹ ورڈ)"}
+                  {activeModule === "inward" && "گیٹ پاس (ان ورڈ)"}
+                  {activeModule === "transfers" && "میٹریل ٹرانسفرز ریکارڈز"}
+                </span>
+              </div>
             </div>
 
             {/* Right Live Status & User Profile Info */}
