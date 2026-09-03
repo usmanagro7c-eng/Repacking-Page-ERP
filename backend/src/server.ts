@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { gatepassRouter } from "./routes/gatepass.routes.js";
 import { productionFormRouter } from "./routes/production-form.routes.js";
+import { authRouter } from "./routes/auth.routes.js";
 import { erpnextConfig } from "./config/erpnext.config.js";
 
 dotenv.config();
@@ -54,6 +55,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // API Routes
+app.use("/api/auth", authRouter);
 app.use("/api/gatepass", gatepassRouter);
 app.use("/api/production-form", productionFormRouter);
 
