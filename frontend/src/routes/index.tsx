@@ -1,19 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Boxes,
   Truck,
   Layers,
-  ChevronDown,
   LogOut,
   UserCircle,
   Loader2,
 } from "lucide-react";
-import { api, type ErpnextItem, type ErpnextWarehouse, type ErpnextMaterialTransfer } from "../lib/api";
+import {
+  api,
+  type ErpnextItem,
+  type ErpnextWarehouse,
+  type ErpnextMaterialTransfer,
+} from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { SignInPage } from "../components/auth/SignInPage";
-import { RepackingModule } from "../components/repacking/RepackingModule";
-import { GatePassModule } from "../components/gatepass/GatePassModule";
+import { RepackingForm } from "../components/repacking/RepackingForm";
+import { GatePassOutwardForm, type GatePassData } from "../components/gatepass/GatePassOutwardForm";
+import { GatePassInwardForm } from "../components/gatepass/GatePassInwardForm";
 import { TransfersModule } from "../components/transfers/TransfersModule";
 
 export const Route = createFileRoute("/")({
@@ -33,38 +38,33 @@ export const Route = createFileRoute("/")({
 export function MainPortalApp() {
   const { user, logout, isAuthenticated, isLoading } = useAuth();
 
-  // Active Navigation Tab: 'repacking' | 'outward' | 'inward' | 'transfers'
+  // Navigation Modules: 'repacking' | 'outward' | 'inward' | 'transfers'
   const [activeModule, setActiveModule] = useState<"repacking" | "outward" | "inward" | "transfers">("outward");
-  const [gatepassDropdownOpen, setGatepassDropdownOpen] = useState(false);
-  const gatepassDropdownRef = useRef<HTMLDivElement>(null);
 
   // ERP Reference Data
   const [items, setItems] = useState<ErpnextItem[]>([]);
   const [warehouses, setWarehouses] = useState<ErpnextWarehouse[]>([]);
+  const [inwardPrefill, setInwardPrefill] = useState<GatePassData | null>(null);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (gatepassDropdownRef.current && !gatepassDropdownRef.current.contains(e.target as Node)) {
-        setGatepassDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  // Filter Warehouses strictly based on ERPNext User Permissions
+  // Filter Warehouses based on ERPNext User Permissions
   const permittedWarehouses = useMemo(() => {
-    if (!user || !user.permissions || !user.permissions.allowedWarehouses || user.permissions.allowedWarehouses.length === 0) {
+    if (
+      !user ||
+      !user.permissions ||
+      !user.permissions.allowedWarehouses ||
+      user.permissions.allowedWarehouses.length === 0
+    ) {
       return warehouses;
     }
     const allowed = new Set(user.permissions.allowedWarehouses.map((w) => w.toLowerCase().trim()));
     return warehouses.filter(
-      (wh) => allowed.has(wh.name.toLowerCase().trim()) || allowed.has((wh.warehouse_name || "").toLowerCase().trim())
+      (wh) =>
+        allowed.has(wh.name.toLowerCase().trim()) ||
+        allowed.has((wh.warehouse_name || "").toLowerCase().trim())
     );
   }, [warehouses, user]);
 
-  // Dynamic check for Stock Entry creation permission
+  // Stock Entry creation permission
   const userCanCreateStockEntry = useMemo(() => {
     if (!user) return false;
     const roles = (user.roles || []).map((r) => r.toLowerCase().trim());
@@ -81,7 +81,7 @@ export function MainPortalApp() {
     return false;
   }, [user]);
 
-  // Dynamic check for Transfers viewing
+  // Transfers viewing permission
   const userCanReadTransfers = useMemo(() => {
     if (!user) return false;
     const roles = (user.roles || []).map((r) => r.toLowerCase().trim());
@@ -98,7 +98,7 @@ export function MainPortalApp() {
     return false;
   }, [user]);
 
-  // Fetch Items and Warehouses once
+  // Initial Data Fetch
   useEffect(() => {
     if (!isAuthenticated) return;
     async function loadData() {
@@ -116,7 +116,24 @@ export function MainPortalApp() {
     loadData();
   }, [isAuthenticated]);
 
-  // Handle loading a transfer into gatepass
+  // Convert Outward to Inward
+  const handleTransferToInward = (outwardData: GatePassData) => {
+    const newInward: GatePassData = {
+      ...outwardData,
+      type: "inward",
+      no: "",
+      relatedOutwardNo: outwardData.no || outwardData.erpDocName || "",
+      fromWarehouse: outwardData.fromWarehouse || "",
+      toWarehouse: outwardData.toWarehouse || "",
+      date: new Date().toISOString().split("T")[0],
+      erpDocName: undefined,
+      rows: outwardData.rows.map((r) => ({ ...r })),
+    };
+    setInwardPrefill(newInward);
+    setActiveModule("inward");
+  };
+
+  // Load Transfer from ERP into Gatepass
   const handleLoadTransferIntoGatepass = (
     _transfer: ErpnextMaterialTransfer,
     targetType: "outward" | "inward"
@@ -124,155 +141,165 @@ export function MainPortalApp() {
     setActiveModule(targetType);
   };
 
-  // Auth Loading Screen
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white font-sans" dir="rtl">
-        <Loader2 className="w-10 h-10 animate-spin text-amber-400 mb-4" />
-        <p className="text-sm font-urdu font-medium text-slate-300">سسٹم میں سیشن چیک کیا جا رہا ہے...</p>
+      <div
+        dir="rtl"
+        className="flex min-h-screen flex-col items-center justify-center bg-slate-950 text-white"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-9 w-9 animate-spin text-emerald-500" />
+          <p className="font-urdu text-sm text-slate-300">سسٹم اور سیشن کی توثیق ہو رہی ہے...</p>
+        </div>
       </div>
     );
   }
 
-  // Auth Protection Gate
   if (!isAuthenticated) {
     return <SignInPage />;
   }
 
   return (
-    <main
-      className="min-h-screen bg-slate-100 py-3 sm:py-5 px-1 sm:px-4 font-sans text-slate-900 transition-colors"
-      dir="rtl"
-    >
-      <div className="mx-auto flex flex-col items-center">
+    <main dir="rtl" className="min-h-screen bg-slate-100/70 py-5 px-2 sm:px-4 print:bg-white print:p-0">
+      <div className="w-full max-w-[210mm] mx-auto">
         {/* ========================================================================= */}
-        {/* TOP TOOLBAR: Brand Header, Module Switcher & User Profile                 */}
+        {/* MASTER TOP APPLICATION NAVBAR (A4 Width Aligned - Single Row)              */}
         {/* ========================================================================= */}
-        <div className="no-print mb-4 w-full max-w-[210mm] flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 sm:px-4 rounded-xl shadow-xs border border-slate-200">
-          {/* Logo & Company Title */}
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-xs font-bold text-base">
-              MM
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold font-urdu leading-tight text-slate-900">
-                مرزا محمد مشتاق اینڈ کمپنی
-              </h2>
-              <span className="text-[11px] text-slate-500 font-sans tracking-tight">
-                ERP Forms Portal (Repacking & Gate Pass)
-              </span>
-            </div>
-          </div>
-
-          {/* Module Selection Navigation */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 overflow-x-auto max-w-full">
-            {/* 1. Repacking Form Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveModule("repacking")}
-              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                activeModule === "repacking"
-                  ? "bg-amber-600 text-white shadow-xs"
-                  : "text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              <Boxes className="h-3.5 w-3.5" />
-              <span>ریپیکنگ (مال کی تیاری)</span>
-            </button>
-
-            {/* 2. Gate Pass Outward Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveModule("outward")}
-              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                activeModule === "outward"
-                  ? "bg-amber-600 text-white shadow-xs"
-                  : "text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              <Truck className="h-3.5 w-3.5" />
-              <span>گیٹ پاس (آؤٹ ورڈ)</span>
-            </button>
-
-            {/* 3. Gate Pass Inward Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveModule("inward")}
-              className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                activeModule === "inward"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              <Truck className="h-3.5 w-3.5" />
-              <span>گیٹ پاس (ان ورڈ)</span>
-            </button>
-
-            {/* 4. Transfers Records Tab */}
-            {userCanReadTransfers && (
+        <div className="no-print mb-3.5 w-full">
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 shadow-xs border border-slate-200">
+            {/* Main Navigation Modules */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+              {/* 1. ریپیکنگ / مال کی تیاری (Repacking) */}
               <button
                 type="button"
-                onClick={() => setActiveModule("transfers")}
-                className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
-                  activeModule === "transfers"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-200"
+                onClick={() => setActiveModule("repacking")}
+                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
+                  activeModule === "repacking"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-800 hover:bg-emerald-50 hover:text-emerald-900"
                 }`}
               >
-                <Layers className="h-3.5 w-3.5" />
-                <span>میٹریل ٹرانسفرز</span>
+                <Boxes className="h-3.5 w-3.5" />
+                <span>ریپیکنگ (مال کی تیاری)</span>
               </button>
-            )}
-          </div>
 
-          {/* User Profile & Logout */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 text-right">
-              <UserCircle className="h-6 w-6 text-slate-400 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-800 leading-tight">
-                  {user?.fullName || user?.email}
-                </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1 rounded border border-amber-200">
-                    {user?.roles?.[0] || "User"}
-                  </span>
-                  {user?.permissions?.allowedWarehouses && user.permissions.allowedWarehouses.length > 0 && (
-                    <span className="text-[9.5px] text-slate-600 bg-slate-100 px-1 rounded border border-slate-300">
-                      {user.permissions.allowedWarehouses.length} گودام
-                    </span>
-                  )}
-                </div>
-              </div>
+              {/* 2. گیٹ پاس (آؤٹ ورڈ) */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("outward")}
+                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
+                  activeModule === "outward"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-800 hover:bg-amber-50 hover:text-amber-900"
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>گیٹ پاس (آؤٹ ورڈ)</span>
+              </button>
+
+              {/* 3. گیٹ پاس (ان ورڈ) */}
+              <button
+                type="button"
+                onClick={() => setActiveModule("inward")}
+                className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs sm:text-[13px] font-urdu font-semibold transition-all cursor-pointer ${
+                  activeModule === "inward"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-800 hover:bg-blue-50 hover:text-blue-900"
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>گیٹ پاس (ان ورڈ)</span>
+              </button>
+
+              {/* 4. Transfers Records Tab */}
+              {userCanReadTransfers && (
+                <button
+                  type="button"
+                  onClick={() => setActiveModule("transfers")}
+                  className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-urdu font-semibold transition-all cursor-pointer ${
+                    activeModule === "transfers"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  <span>میٹریل ٹرانسفرز</span>
+                </button>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-              title="لاگ آؤٹ کریں (Log Out)"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+
+            {/* Right Live Status & User Profile Info */}
+            <div className="flex shrink-0 items-center gap-2">
+              {user && (
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1">
+                    <UserCircle className="h-4 w-4 text-emerald-600" />
+                    <div className="text-right">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <span className="block text-[11px] font-urdu font-bold text-slate-800 leading-tight">
+                          {user.fullName || user.username}
+                        </span>
+                        {user.roles && user.roles.length > 0 && (
+                          <span className="bg-emerald-100 text-emerald-800 font-sans text-[9px] font-bold px-1 rounded">
+                            {user.roles[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 justify-end">
+                        <span className="block text-[9.5px] text-slate-500 font-sans leading-tight">
+                          {user.email || user.username}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                    title="لاگ آؤٹ کریں (Log Out)"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* ACTIVE MODULE CONTAINER                                                   */}
+        {/* MODULE 1: REPACKING FORM (مال کی تیاری کی تفصیل - A4 Sheet)               */}
         {/* ========================================================================= */}
         {activeModule === "repacking" && (
-          <RepackingModule userCanCreateStockEntry={userCanCreateStockEntry} />
+          <RepackingForm userCanCreateStockEntry={userCanCreateStockEntry} />
         )}
 
-        {(activeModule === "outward" || activeModule === "inward") && (
-          <GatePassModule
-            activeType={activeModule}
-            onSwitchType={(type) => setActiveModule(type)}
+        {/* ========================================================================= */}
+        {/* MODULE 2: GATE PASS OUTWARD FORM (گیٹ پاس آؤٹ ورڈ - A4 Sheet)             */}
+        {/* ========================================================================= */}
+        {activeModule === "outward" && (
+          <GatePassOutwardForm
             userCanCreateStockEntry={userCanCreateStockEntry}
             permittedWarehouses={permittedWarehouses}
             items={items}
+            onConvertToInward={handleTransferToInward}
           />
         )}
 
+        {/* ========================================================================= */}
+        {/* MODULE 3: GATE PASS INWARD FORM (گیٹ پاس ان ورڈ - A4 Sheet)               */}
+        {/* ========================================================================= */}
+        {activeModule === "inward" && (
+          <GatePassInwardForm
+            userCanCreateStockEntry={userCanCreateStockEntry}
+            permittedWarehouses={permittedWarehouses}
+            items={items}
+            prefilledData={inwardPrefill}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODULE 4: TRANSFERS HISTORY (A4 Width)                                     */}
+        {/* ========================================================================= */}
         {activeModule === "transfers" && (
           <TransfersModule onLoadTransferIntoGatepass={handleLoadTransferIntoGatepass} />
         )}
