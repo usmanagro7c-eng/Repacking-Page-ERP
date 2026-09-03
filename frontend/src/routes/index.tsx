@@ -118,15 +118,15 @@ export function MainPortalApp() {
 
   // Convert Outward to Inward
   const handleTransferToInward = (outwardData: GatePassData) => {
+    const { erpDocName: _erpDocName, ...outwardWithoutErpDocName } = outwardData;
     const newInward: GatePassData = {
-      ...outwardData,
+      ...outwardWithoutErpDocName,
       type: "inward",
       no: "",
       relatedOutwardNo: outwardData.no || outwardData.erpDocName || "",
       fromWarehouse: outwardData.fromWarehouse || "",
       toWarehouse: outwardData.toWarehouse || "",
-      date: new Date().toISOString().split("T")[0],
-      erpDocName: undefined,
+      date: new Date().toISOString().split("T")[0] ?? "",
       rows: outwardData.rows.map((r) => ({ ...r })),
     };
     setInwardPrefill(newInward);
