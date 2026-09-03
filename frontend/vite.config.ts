@@ -13,4 +13,10 @@ export default defineConfig({
     }),
     viteReact(),
   ],
+  server: {
+    port: 3000,
+  },
+  ssr: {
+    external: ["lucide-react"],
+  },
 });
