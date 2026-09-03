@@ -2,6 +2,7 @@ import { Router } from "express";
 import { globalProductionFormService } from "../services/production-form.service.js";
 import { erpnextService } from "../services/erpnext.service.js";
 import { validateProductionFormInput } from "../middleware/validation.middleware.js";
+import { extractUserSid } from "../middleware/auth.middleware.js";
 
 export const productionFormRouter = Router();
 
@@ -16,8 +17,9 @@ productionFormRouter.get("/", (_req, res) => {
 });
 
 // GET /api/production-form/items (Fetch ERPNext item dropdown list)
-productionFormRouter.get("/items", async (_req, res) => {
-  const items = await erpnextService.getItemsList();
+productionFormRouter.get("/items", async (req, res) => {
+  const userSid = extractUserSid(req);
+  const items = await erpnextService.getItemsList(userSid);
   res.json({
     success: true,
     data: items,
@@ -26,8 +28,9 @@ productionFormRouter.get("/items", async (_req, res) => {
 
 // GET /api/production-form/batches?item=ITEM_CODE
 productionFormRouter.get("/batches", async (req, res) => {
+  const userSid = extractUserSid(req);
   const itemCode = String(req.query.item || "").trim();
-  const batches = itemCode ? await erpnextService.getBatchesForItem(itemCode) : [];
+  const batches = itemCode ? await erpnextService.getBatchesForItem(itemCode, userSid) : [];
   res.json({
     success: true,
     data: batches,
@@ -36,8 +39,9 @@ productionFormRouter.get("/batches", async (req, res) => {
 
 // GET /api/production-form/uoms?item=ITEM_CODE
 productionFormRouter.get("/uoms", async (req, res) => {
+  const userSid = extractUserSid(req);
   const itemCode = String(req.query.item || "").trim();
-  const uoms = itemCode ? await erpnextService.getUomsForItem(itemCode) : ["Kg"];
+  const uoms = itemCode ? await erpnextService.getUomsForItem(itemCode, userSid) : ["Kg"];
   res.json({
     success: true,
     data: uoms,
@@ -52,9 +56,10 @@ productionFormRouter.get("/config", (_req, res) => {
   });
 });
 
-// GET /api/production-form/logo (ERPNext Administrator user image)
-productionFormRouter.get("/logo", async (_req, res) => {
-  const logo = await erpnextService.getUserLogo();
+// GET /api/production-form/logo (ERPNext user image)
+productionFormRouter.get("/logo", async (req, res) => {
+  const userSid = extractUserSid(req);
+  const logo = await erpnextService.getUserLogo(undefined, userSid);
   res.json({
     success: true,
     data: logo,
@@ -107,7 +112,8 @@ productionFormRouter.post("/sync-erpnext", async (req, res) => {
   const currentForm = globalProductionFormService.getForm();
   const summary = globalProductionFormService.calculateSummary(currentForm);
 
-  const result = await erpnextService.syncProductionForm(currentForm, summary);
+  const userSid = extractUserSid(req);
+  const result = await erpnextService.syncProductionForm(currentForm, summary, userSid);
 
   if (!result.success) {
     res.status(500).json({
